@@ -13,7 +13,9 @@ class MMDElement extends HTMLElement {
     this.setupMethods()
     this.setupData()
     this.setupTargets()
-    /* this.setupModels() */
+    this.setupModels()
+    this.setupListeners()
+    this.dir(this)
   }
 
   setupMethods() {
@@ -40,7 +42,7 @@ class MMDElement extends HTMLElement {
   setupTargets() {    
 
     this.targets.forEach(targetKey => {
-      const selector = `[data-element="${this.elementAlias}.${targetKey}"]`
+      const selector = `[data-${this.elementIdentifier}\\:target="${targetKey}"]`
       const elements = [...this.querySelectorAll(selector)]
 
       if(!elements.length) {
@@ -50,28 +52,45 @@ class MMDElement extends HTMLElement {
       const targetAlias = this.toAlias(targetKey)
       this[`${targetAlias}El`] = elements.at(0) ? elements.at(0) : null
       this[`${targetAlias}Els`] = elements
-
     })
 
   }
 
-  /*
+  setupListeners() {
+    this.addEventListener("input", event => {
+      const modelName = this.getModelName(event.target)
+      if(!modelName) return
+      this.data[this.toAlias(modelName)] = event.target.value
+      this.modelUpdated(modelName)
+    })
+  }
+
   setupModels () {
-
-    this.models = {}
-    const models = [...this.querySelectorAll(`[data-model^="${this.elementAlias}."]`)]
-
-    console.log(models)
-
+    const models = [...this.querySelectorAll(`[data-${this.elementIdentifier}\\:model]`)]
+    const modelAlias = this.toAlias(`${this.elementIdentifier}:model`)
     models.forEach(model => {
-      const modelName = model.dataset.model.replace(`${this.elementAlias}.`,'');
-      this.models[modelName] = model.value
+      const modelName = model.dataset[modelAlias];
+      this.data[this.toAlias(modelName)] = model.value
     })
-
-    this.log(this.models)
-
   }
-  */
+
+  modelUpdated (modelName) {
+    const bindEls = [...this.querySelectorAll(`[data-${this.elementIdentifier}\\:bind="${modelName}"]`)]
+    bindEls.forEach(bindEl => bindEl.textContent = this.data[this.toAlias(modelName)])
+  }
+
+  getElementName (element) {
+    return this.getData(element,'element')
+  }
+
+  getModelName (element) {
+    return this.getData(element,'model')
+  }
+
+  getData (element,key) {
+    const keyAlias = this.toAlias(`${this.elementIdentifier}:${key}`)
+    return element.dataset[keyAlias] ? element.dataset[keyAlias] : null
+  }
 
   toAlias (string) {
     return string.replace(/-([a-z])/g, (match, char) => {
@@ -79,24 +98,28 @@ class MMDElement extends HTMLElement {
     })
   }
 
-  log (param) {
-    if (!this.debug) return
-    console.log(param)
+  firstOrAll (args) {
+    return args.length === 1 ? args.at(0) : args
   }
 
-  warn (param) {
+  log (...args) {
     if (!this.debug) return
-    console.warn(param)
+    console.log(this.firstOrAll(args))
   }
 
-  error (param) {
+  warn (...args) {
     if (!this.debug) return
-    console.error(param)
+    console.warn(this.firstOrAll(args))
   }
 
-  dir (param) {
+  error (...args) {
     if (!this.debug) return
-    console.dir(param)
+    console.error(this.firstOrAll(args))
+  }
+
+  dir (...args) {
+    if (!this.debug) return
+    console.dir(this.firstOrAll(args))
   }
 
   exception(expression) {
@@ -139,7 +162,7 @@ class MMDElement extends HTMLElement {
     return this.tagName.toLowerCase()
   }
 
-  get elementAlias () {
+  get elementIdentifier () {
     return this.id || this.elementName
   }
 
